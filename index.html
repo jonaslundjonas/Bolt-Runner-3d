@@ -1,0 +1,1129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f4f1ea">
+<title>Bolt Runner 3D</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;background:#f4f1ea;color:#2b2b2b;font-family:system-ui,sans-serif}
+  #stage{position:fixed;inset:0;cursor:pointer;touch-action:none;outline:none;user-select:none;-webkit-user-select:none;background:#f4f1ea}
+  #stage canvas{display:block}
+  #hud{position:absolute;top:max(14px,env(safe-area-inset-top));right:max(18px,env(safe-area-inset-right));font:bold clamp(14px,2vw,20px) ui-monospace,Menlo,Consolas,monospace;display:flex;gap:18px;pointer-events:none}
+  #best{color:#8a8780}
+  #coins{display:inline-block}
+  #coins.pop{animation:pop .18s ease-out}
+  @keyframes pop{50%{transform:scale(1.25)}}
+  #score.flash{animation:fl .15s steps(1) 8}
+  @keyframes fl{50%{opacity:.2}}
+  #diffTag{color:#8a8780;text-transform:uppercase;letter-spacing:.06em}
+  /* Power-up pill */
+  #power{--pc:#888;position:absolute;top:calc(max(14px,env(safe-area-inset-top)) + 40px);left:50%;transform:translateX(-50%);display:none;align-items:center;gap:10px;padding:7px 14px;border-radius:999px;background:rgba(255,255,255,.85);box-shadow:0 2px 12px rgba(0,0,0,.08);font:600 14px system-ui,sans-serif;pointer-events:none;white-space:nowrap}
+  #power .dot{width:12px;height:12px;border-radius:50%;background:var(--pc);box-shadow:0 0 8px var(--pc)}
+  #power .bar{width:min(120px,22vw);height:6px;border-radius:3px;background:#e4e0d7;overflow:hidden}
+  #power .bar i{display:block;height:100%;width:100%;background:var(--pc)}
+  #pTime{font:600 13px ui-monospace,Menlo,Consolas,monospace;color:#8a8780;min-width:2.4em}
+  #pHint{font-size:12px;color:#8a8780}
+  #power.low{animation:fl .25s steps(1) infinite}
+  #fire{position:absolute;right:max(20px,env(safe-area-inset-right));bottom:max(28px,env(safe-area-inset-bottom));width:88px;height:88px;padding:0;border-radius:50%;background:#ff2a2a;border-color:#b81414;color:#fff;font-weight:800;letter-spacing:.06em;box-shadow:0 4px 18px rgba(255,42,42,.45);display:none}
+  #fire:active{transform:scale(.94)}
+  .screen{position:absolute;inset:0;display:flex;pointer-events:none}
+  .screen button{pointer-events:auto}
+  button{touch-action:manipulation;font:600 18px system-ui,sans-serif;padding:12px 36px;border-radius:999px;border:2px solid #2b2b2b;background:#2b2b2b;color:#f4f1ea;cursor:pointer;transition:transform .12s}
+  button:hover{transform:translateY(-2px)}
+  button.ghost{background:transparent;color:#2b2b2b}
+  kbd{font:600 12px ui-monospace,Menlo,Consolas,monospace;border:1.5px solid #8a8780;border-bottom-width:3px;border-radius:5px;padding:1px 6px;background:#f4f1ea}
+  .credit{position:absolute;left:0;right:0;bottom:max(14px,env(safe-area-inset-bottom));text-align:center;font-size:13px;color:#8a8780;letter-spacing:.02em}
+  /* Start screen */
+  #start{align-items:center;padding:0 7vw;background:linear-gradient(90deg,rgba(244,241,234,.92),rgba(244,241,234,.4) 50%,rgba(244,241,234,0) 70%)}
+  .card{max-width:420px}
+  #start h1{margin:0;font-size:clamp(40px,6.5vw,72px);line-height:.95;letter-spacing:-.03em}
+  #start h1 span{color:#8a8780}
+  .tag{margin:12px 0 22px;font-size:clamp(15px,1.6vw,18px);color:#5a5852}
+  .press{margin:10px 0 0;font-size:13px;color:#8a8780}
+  .keys{display:grid;grid-template-columns:auto 1fr;gap:7px 14px;align-items:center;margin-top:20px;font-size:14px}
+  .keys b{font-weight:600}
+  .pw{display:inline-flex;gap:4px;align-items:center}
+  .pw i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .lbl{margin:0 0 8px;font-size:13px;color:#8a8780}
+  .diff{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 22px}
+  .diff button{padding:8px 16px;font-size:15px;background:transparent;color:#2b2b2b;border-color:#cfc9bc}
+  .diff button.on{background:#2b2b2b;color:#f4f1ea;border-color:#2b2b2b}
+  .startBest{margin-top:18px;font:bold 15px ui-monospace,Menlo,Consolas,monospace;color:#8a8780}
+  #hint{color:#b0782c;font-size:13px;margin:8px 0 0;min-height:1em}
+  /* Game over */
+  #msg{flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(244,241,234,.5)}
+  #msg h2{margin:0 0 6px;font-size:clamp(32px,5vw,52px);letter-spacing:-.02em}
+  #msg p{margin:2px 0 20px;font-size:clamp(14px,1.8vw,17px)}
+  .row{display:flex;gap:12px;justify-content:center}
+  .small{font-size:13px;color:#8a8780;margin-top:14px!important}
+  .touchOnly{display:none}
+  .touchKeys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:14px;margin:16px auto 0;text-align:left;width:max-content}
+  .touchKeys b{font-weight:600}
+  .touchKeys.touchOnly{display:none}
+  @media (pointer:coarse){
+    .touchOnly{display:block}
+    .touchKeys.touchOnly{display:grid}
+    .keyOnly,#hint,.keys{display:none!important}
+  }
+  @media (max-height:500px) and (orientation:landscape){
+    #start{align-items:center;justify-content:flex-start;padding:0 5vw}
+    #start h1{font-size:34px}
+    .tag{margin:6px 0 10px}
+    .diff{margin-bottom:12px}
+    .touchKeys{display:none!important}
+    .startBest{margin-top:10px}
+    #start .credit{left:auto;right:max(18px,env(safe-area-inset-right));text-align:right}
+  }
+  @media (max-width:700px){
+    #start{justify-content:center;align-items:flex-end;padding:0 16px 54px;background:linear-gradient(0deg,rgba(244,241,234,.96) 55%,rgba(244,241,234,0))}
+    .card{text-align:center}
+    .keys{display:none}
+    .diff{justify-content:center}
+    .tag{margin-bottom:16px}
+  }
+  @media (max-width:520px){ #best{display:none} #hud{gap:12px} }
+</style>
+</head>
+<body>
+<div id="stage" tabindex="0" aria-label="Bolt Runner 3D game">
+  <div id="hud"><span id="diffTag">Medium</span><span id="coins">● 000</span><span id="best">Best 00000</span><span id="score">Score 00000</span></div>
+  <div id="power"><span class="dot"></span><span id="pLabel"></span><span class="bar"><i id="pBar"></i></span><span id="pTime"></span><span id="pHint"></span></div>
+  <button id="fire" aria-label="Fire blaster">FIRE</button>
+
+  <div id="start" class="screen">
+    <div class="card">
+      <h1>Bolt Runner <span>3D</span></h1>
+      <p class="tag" id="tag">Run, jump, duck, dodge bouncing balls, grab coins and power-ups.</p>
+      <p class="lbl">Difficulty<span class="keyOnly"> · <kbd>←</kbd> <kbd>→</kbd> or <kbd>1</kbd>–<kbd>4</kbd></span></p>
+      <div class="diff" id="diff" role="radiogroup" aria-label="Difficulty">
+        <button data-d="easy" role="radio">Easy</button><button data-d="medium" role="radio">Medium</button><button data-d="hard" role="radio">Hard</button><button data-d="bonkers" role="radio">Bonkers</button>
+      </div>
+      <button id="play">Play</button>
+      <p class="press keyOnly">or press <kbd>Space</kbd></p>
+      <p id="hint"></p>
+      <div class="keys">
+        <span><kbd>Space</kbd> <kbd>↑</kbd></span><span><b>Jump</b> · hold for higher</span>
+        <span><kbd>←</kbd> <kbd>→</kbd></span><span><b>Change lane</b> · or A / D</span>
+        <span><kbd>↓</kbd></span><span><b>Duck</b> · fast-fall in the air</span>
+        <span><kbd>F</kbd></span><span><b>Fire</b> · while the Blaster is active</span>
+        <span>●</span><span><b>Coins</b> · +10 points each</span>
+        <span class="pw"><i style="background:#3d8bff"></i><i style="background:#22b860"></i><i style="background:#ff9f1a"></i></span><span><b>Power-ups</b> · Slow-mo, Coin Vacuum, Blaster · 15 s</span>
+      </div>
+      <div class="touchKeys touchOnly">
+        <span>Tap</span><span><b>Jump</b></span>
+        <span>Swipe ← →</span><span><b>Change lane</b></span>
+        <span>Swipe ↓</span><span><b>Duck</b> · hold to stay down</span>
+        <span>FIRE button</span><span><b>Shoot</b> · with the Blaster</span>
+      </div>
+      <div class="startBest" id="startBest">Best 00000</div>
+    </div>
+    <div class="credit">Created by Jonas Lund 2026</div>
+  </div>
+
+  <div id="msg" class="screen">
+    <h2>Crashed!</h2>
+    <p id="sub"></p>
+    <div class="row"><button id="retry">Retry</button><button id="menu" class="ghost">Menu</button></div>
+    <p class="small keyOnly"><kbd>Space</kbd> retry · <kbd>Esc</kbd> menu</p>
+    <p class="small touchOnly">Tap anywhere to retry</p>
+    <div class="credit">Created by Jonas Lund 2026</div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const stage = $('stage'), msg = $('msg'), startEl = $('start'), hud = $('hud');
+  const subEl = $('sub'), hintEl = $('hint'), startBestEl = $('startBest'), tagEl = $('tag');
+  const scoreEl = $('score'), bestEl = $('best'), coinsEl = $('coins'), diffTagEl = $('diffTag');
+  const powerEl = $('power'), pLabel = $('pLabel'), pBar = $('pBar'), pTime = $('pTime'), pHint = $('pHint'), fireBtn = $('fire');
+
+  if (!window.THREE) {
+    tagEl.textContent = 'Could not load the 3D engine. Bolt Runner 3D needs an internet connection to load Three.js.';
+    $('play').style.display = 'none';
+    msg.style.display = 'none'; hud.style.display = 'none';
+    return;
+  }
+  const T = THREE;
+
+  // ---------- Tuning ----------
+  const INK = 0x2b2b2b, MID = 0x8a8780, LIGHT = 0xd9d5cc, FAINT = 0xe6e2d9, PAPER = 0xf4f1ea, GLOW = 0xfffdf6;
+  const LW = 2.2;                    // lane width
+  const SPAN = 156, FRONT = 12;      // scenery wrap span / despawn line
+  const SPAWN_Z = -130;
+  const G = 60, JUMP_V = 19, CUT_V = 7;
+  // Difficulty levels: speeds, how often rows are doubled, when drones/balls appear, ball chance, lane-hopping balls, row spacing
+  const DIFFS = {
+    easy:    { label: 'Easy',    start: 14, max: 32, accel: .30, two0: 0,   two1: .30, droneAt: 400, ballAt: 300, ball: .12, drift: 0,   gap: 1.25 },
+    medium:  { label: 'Medium',  start: 18, max: 46, accel: .42, two0: .10, two1: .45, droneAt: 220, ballAt: 250, ball: .18, drift: .30, gap: 1 },
+    hard:    { label: 'Hard',    start: 24, max: 54, accel: .60, two0: .25, two1: .45, droneAt: 80,  ballAt: 120, ball: .24, drift: .55, gap: .88 },
+    bonkers: { label: 'Bonkers', start: 30, max: 64, accel: .90, two0: .45, two1: .40, droneAt: 0,   ballAt: 0,   ball: .34, drift: .90, gap: .75 }
+  };
+  const DIFF_ORDER = ['easy', 'medium', 'hard', 'bonkers'];
+
+  // Power-ups: rare, one at a time, 15 seconds each
+  const POWER_AT = 300, POWER_TIME = 15, POWER_CHANCE = .08, POWER_GAP = 12;
+  const POWERS = {
+    slow:   { label: 'Slow-mo',     color: 0x3d8bff, css: '#3d8bff' },
+    vacuum: { label: 'Coin Vacuum', color: 0x22b860, css: '#22b860' },
+    gun:    { label: 'Blaster',     color: 0xff9f1a, css: '#ff9f1a' }
+  };
+  const BULLET_COLOR = 0xff2a2a, BULLET_SPEED = 95, FIRE_RATE = .17, SHOT_BONUS = 15;
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+  let diff = DIFFS[store.get('boltRunner3DDiff')] ? store.get('boltRunner3DDiff') : 'medium';
+  let D = DIFFS[diff];
+
+  // ---------- High score (one per difficulty; old single score counts as Medium) ----------
+  const hiKey = d => 'boltRunner3DHi_' + d;
+  if (store.get(hiKey('medium')) === null && store.get('boltRunner3DHi') !== null) store.set(hiKey('medium'), store.get('boltRunner3DHi'));
+  let hi = +store.get(hiKey(diff)) || 0;
+  const saveHi = () => store.set(hiKey(diff), String(hi));
+
+  // ---------- Audio ----------
+  let ac = null;
+  function audio() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} }
+    if (ac && ac.state === 'suspended') ac.resume();
+  }
+  function tone(f, d, type = 'square', vol = .05, slide = 0, delay = 0) {
+    if (!ac) return;
+    const t0 = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30, f + slide), t0 + d);
+    g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g).connect(ac.destination); o.start(t0); o.stop(t0 + d + .02);
+  }
+  function boom(vol = .08) {
+    if (!ac) return;
+    const len = Math.floor(ac.sampleRate * .35), buf = ac.createBuffer(1, len, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    const src = ac.createBufferSource(), g = ac.createGain(), f = ac.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 900;
+    src.buffer = buf; g.gain.value = vol;
+    src.connect(f).connect(g).connect(ac.destination); src.start();
+  }
+
+  // ---------- Renderer / scene ----------
+  const TOUCH = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+  const renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, TOUCH ? 1.5 : 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = T.PCFSoftShadowMap;
+  stage.prepend(renderer.domElement);
+
+  const scene = new T.Scene();
+  const paperC = new T.Color(PAPER), slowC = new T.Color(0xe2e9f5);
+  scene.background = new T.Color(PAPER);
+  scene.fog = new T.Fog(PAPER, 35, 135);
+  const camera = new T.PerspectiveCamera(55, 16 / 9, .1, 400);
+
+  scene.add(new T.HemisphereLight(0xffffff, 0xbdb8ad, .55));
+  const sun = new T.DirectionalLight(0xffffff, .5);
+  sun.position.set(8, 16, 6);
+  sun.target.position.set(0, 0, -8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(TOUCH ? 512 : 1024, TOUCH ? 512 : 1024);
+  Object.assign(sun.shadow.camera, { left: -14, right: 14, top: 22, bottom: -22, near: 1, far: 60 });
+  scene.add(sun, sun.target);
+
+  const mat = c => new T.MeshStandardMaterial({ color: c, roughness: .9, metalness: 0, flatShading: true });
+  const glowMat = c => new T.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: .45, roughness: .4 });
+  const M = {
+    ink: mat(INK), mid: mat(MID), light: mat(LIGHT), faint: mat(FAINT), paper: mat(PAPER), ground: mat(0xebe7de),
+    glow: new T.MeshBasicMaterial({ color: GLOW })
+  };
+  function mesh(geo, m, x = 0, y = 0, z = 0, parent = null, shadow = true) {
+    const o = new T.Mesh(geo, m);
+    o.position.set(x, y, z);
+    o.castShadow = shadow; o.receiveShadow = true;
+    if (parent) parent.add(o);
+    return o;
+  }
+  const box = (w, h, d, m, x, y, z, parent) => mesh(new T.BoxGeometry(w, h, d), m, x, y, z, parent);
+
+  // ---------- Ground & scenery ----------
+  const ground = mesh(new T.PlaneGeometry(400, 400), M.ground, 0, 0, -120, scene, false);
+  ground.rotation.x = -Math.PI / 2;
+  const track = mesh(new T.PlaneGeometry(LW * 3 + .6, 400), M.paper, 0, .01, -120, scene, false);
+  track.rotation.x = -Math.PI / 2;
+  for (const s of [-1, 1]) mesh(new T.BoxGeometry(.08, .03, 400), M.ink, s * (LW * 1.5 + .3), .02, -120, scene, false);
+
+  const scenery = []; // objects that scroll and wrap
+  const dashGeo = new T.BoxGeometry(.07, .02, 2.2);
+  for (const s of [-.5, .5]) for (let i = 0; i < 26; i++)
+    scenery.push(mesh(dashGeo, M.mid, s * LW, .02, FRONT - i * 6, scene, false));
+
+  const cubeGeo = new T.BoxGeometry(1, 1, 1);
+  for (let i = 0; i < 70; i++) {
+    const side = Math.random() < .5 ? -1 : 1, sz = .1 + Math.random() * .25;
+    const p = mesh(cubeGeo, Math.random() < .5 ? M.mid : M.light, side * (4.5 + Math.random() * 20), sz / 2, FRONT - Math.random() * SPAN, scene, false);
+    p.scale.set(sz * 1.6, sz, sz); p.rotation.y = Math.random() * 3;
+    scenery.push(p);
+  }
+
+  const coneGeo = new T.ConeGeometry(1, 1, 6);
+  for (let i = 0; i < 26; i++) {
+    const side = Math.random() < .5 ? -1 : 1, r = 4 + Math.random() * 6, h = 3 + Math.random() * 6;
+    const hl = mesh(coneGeo, Math.random() < .5 ? M.faint : M.light, side * (15 + Math.random() * 45), h / 2, FRONT - Math.random() * SPAN, scene, false);
+    hl.scale.set(r, h, r); hl.rotation.y = Math.random() * 3;
+    scenery.push(hl);
+  }
+  for (let i = 0; i < 18; i++) { // static far mountain range
+    const r = 15 + Math.random() * 18, h = 12 + Math.random() * 22;
+    const m = mesh(coneGeo, M.faint, -160 + i * 19 + Math.random() * 8, h / 2, -185 - Math.random() * 20, scene, false);
+    m.scale.set(r, h, r);
+  }
+  const planet = new T.Mesh(new T.SphereGeometry(9, 20, 14), new T.MeshBasicMaterial({ color: LIGHT, fog: false }));
+  planet.position.set(-95, 48, -200); scene.add(planet);
+  const pRing = new T.Mesh(new T.TorusGeometry(15, .45, 6, 48), new T.MeshBasicMaterial({ color: MID, fog: false }));
+  pRing.position.copy(planet.position); pRing.rotation.set(1.25, .35, 0); scene.add(pRing);
+
+  // ---------- Robot ----------
+  // Classic blocky body + jointed arms, round eyes and a springy antenna
+  const botG = new T.Group(), rig = new T.Group();
+  botG.add(rig); scene.add(botG);
+  const screenMat = new T.MeshStandardMaterial({ color: 0x151515, roughness: .25, metalness: .2 });
+  const tipMat = new T.MeshStandardMaterial({ color: MID, emissive: 0x000000, roughness: .4 });
+  const pupilMat = new T.MeshBasicMaterial({ color: INK });
+  const jointGeo = new T.SphereGeometry(1, 12, 10);
+  const joint = (r, parent, m = M.light) => { const j = mesh(jointGeo, m, 0, 0, 0, parent); j.scale.setScalar(r); return j; };
+
+  const legs = [];
+  for (const sd of [-1, 1]) {
+    const p = new T.Group(); p.position.set(sd * .25, .55, 0); rig.add(p);
+    box(.26, .55, .3, M.mid, 0, -.275, 0, p);
+    legs.push(p);
+  }
+  box(1, 1.05, .85, M.ink, 0, 1.12, 0, rig);                       // torso
+  box(1.04, .34, .52, M.mid, 0, 1.36, -.2, rig);                   // visor
+  mesh(new T.BoxGeometry(.86, .27, .02), screenMat, 0, 1.36, -.465, rig); // face screen
+  for (const sd of [-1, 1]) box(.04, .12, .2, M.glow, sd * .53, 1.36, -.26, rig); // side lights
+  box(.42, .2, .04, M.mid, 0, .92, -.44, rig);                     // chest panel
+  const chestLights = [0, 1, 2].map(i => {
+    const m = new T.MeshBasicMaterial({ color: LIGHT });
+    mesh(new T.BoxGeometry(.07, .07, .02), m, -.11 + i * .11, .92, -.465, rig, false);
+    return m;
+  });
+  box(.52, .46, .12, M.mid, 0, 1.12, .47, rig);                    // battery pack
+  const bolt = box(.08, .3, .02, M.light, 0, 1.12, .54, rig); bolt.rotation.z = .5;
+
+  // Eyes on the visor screen
+  const eyeGeo2 = new T.CircleGeometry(.095, 22), pupilGeo = new T.CircleGeometry(.04, 16), shineGeo = new T.CircleGeometry(.015, 8);
+  const eyes = [];
+  for (const sd of [-1, 1]) {
+    const e = new T.Group(); e.position.set(sd * .2, 1.36, -.477); e.rotation.y = Math.PI; rig.add(e);
+    e.add(new T.Mesh(eyeGeo2, M.glow));
+    const pu = new T.Mesh(pupilGeo, pupilMat); pu.position.z = .003; e.add(pu);
+    const shine = new T.Mesh(shineGeo, M.glow); shine.position.set(.016, .016, .003); pu.add(shine);
+    eyes.push({ e, pu });
+  }
+
+  // Jointed arms: shoulder > elbow > hand
+  const arms = [];
+  for (const sd of [-1, 1]) {
+    const sh = new T.Group(); sh.position.set(sd * .57, 1.38, 0); rig.add(sh);
+    joint(.1, sh);
+    box(.13, .28, .15, M.mid, 0, -.14, 0, sh);
+    const el = new T.Group(); el.position.y = -.28; sh.add(el);
+    joint(.075, el);
+    box(.12, .24, .14, M.mid, 0, -.12, 0, el);
+    const hand = mesh(jointGeo, M.ink, 0, -.28, 0, el); hand.scale.set(.085, .08, .085);
+    arms.push({ sh, el, sd });
+  }
+
+  // Blaster held in the right hand (visible only with the Blaster power-up)
+  const gunMat = glowMat(POWERS.gun.color);
+  const bulletMat = new T.MeshBasicMaterial({ color: BULLET_COLOR });
+  const blaster = new T.Group(); blaster.position.y = -.28; arms[1].el.add(blaster);
+  box(.14, .34, .15, gunMat, 0, -.18, 0, blaster);
+  mesh(new T.CylinderGeometry(.045, .045, .2, 10), M.ink, 0, -.44, 0, blaster);
+  mesh(new T.SphereGeometry(.055, 10, 8), bulletMat, 0, -.55, 0, blaster, false);
+  const muzzle = new T.Object3D(); muzzle.position.y = -.6; blaster.add(muzzle);
+  blaster.visible = false;
+
+  // Springy antenna: three segments that bend progressively more toward the tip
+  const ant = [], antGeo = new T.CylinderGeometry(.022, .028, .17, 6);
+  const antBase = new T.Group(); antBase.position.set(.18, 1.645, .05); rig.add(antBase);
+  joint(.05, antBase, M.mid);
+  let antParent = antBase;
+  for (let i = 0; i < 3; i++) {
+    const g = new T.Group(); g.position.y = i ? .17 : .02; antParent.add(g);
+    mesh(antGeo, M.mid, 0, .085, 0, g);
+    ant.push(g); antParent = g;
+  }
+  mesh(new T.SphereGeometry(.075, 12, 10), tipMat, 0, .2, 0, antParent);
+  const antS = { ax: 0, vx: 0, az: 0, vz: 0 };
+  function antKick(x, z) { antS.vx += x; antS.vz += z; }
+  let blinkT = 2.5, happyT = 0;
+
+  // Coin Vacuum aura (not part of the rig, so it never shatters)
+  const vacMat = new T.MeshBasicMaterial({ color: POWERS.vacuum.color, transparent: true, opacity: .75 });
+  const vacRings = [0, 1].map(i => {
+    const r = new T.Mesh(new T.TorusGeometry(1 - i * .25, .035, 6, 40), vacMat);
+    r.rotation.x = Math.PI / 2; r.position.y = .5 + i * .6; botG.add(r); r.visible = false;
+    return r;
+  });
+
+  // Soft contact shadow blob
+  const blob = new T.Mesh(new T.CircleGeometry(.55, 20), new T.MeshBasicMaterial({ color: INK, transparent: true, opacity: .12, depthWrite: false }));
+  blob.rotation.x = -Math.PI / 2; blob.position.y = .02; scene.add(blob);
+
+  function poseNeutral() {
+    rig.position.set(0, 0, 0); rig.rotation.set(0, 0, 0); rig.scale.set(1, 1, 1);
+    for (const l of legs) l.rotation.set(0, 0, 0);
+    for (const a of arms) { a.sh.rotation.set(0, 0, a.sd * .12); a.el.rotation.set(.25, 0, 0); }
+    for (const g of ant) g.rotation.set(0, 0, 0);
+    Object.assign(antS, { ax: 0, vx: 0, az: 0, vz: 0 });
+    for (const ey of eyes) ey.e.scale.y = 1;
+    blaster.visible = false;
+  }
+
+  // ---------- Shatter / debris system ----------
+  const tmpV = new T.Vector3();
+  let robotFrags = [], debris = [], assembling = null;
+  function visibleChain(o, root) {
+    for (let p = o; p; p = p.parent) { if (!p.visible) return false; if (p === root) return true; }
+    return true;
+  }
+  // Clone every visible mesh of `root` into a free-flying piece at its exact world transform
+  function breakApart(root, center, force) {
+    root.updateWorldMatrix(true, true);
+    const out = [];
+    root.traverse(o => {
+      if (!o.isMesh || (o.material && o.material.transparent) || !visibleChain(o, root)) return;
+      const m = new T.Mesh(o.geometry, o.material);
+      o.matrixWorld.decompose(m.position, m.quaternion, m.scale);
+      m.castShadow = true; scene.add(m);
+      const dir = m.position.clone().sub(center); dir.y = Math.abs(dir.y) + .4; dir.normalize();
+      const v = dir.multiplyScalar(force * (.6 + Math.random() * .8)); v.y += 3 + Math.random() * 4;
+      out.push({ m, src: o, v, w: new T.Vector3((Math.random() - .5) * 14, (Math.random() - .5) * 14, (Math.random() - .5) * 14), s0: m.scale.clone() });
+    });
+    return out;
+  }
+  function addShards(center, n, mats, force) {
+    for (let i = 0; i < n; i++) {
+      const m = mesh(cubeGeo, mats[i % mats.length], center.x, center.y, center.z, scene);
+      const sz = .05 + Math.random() * .09; m.scale.setScalar(sz);
+      debris.push({ m, s0: m.scale.clone(), life: 1.5 + Math.random(), max: 2.5,
+        v: new T.Vector3((Math.random() - .5) * force, 3 + Math.random() * force * .7, (Math.random() - .5) * force),
+        w: new T.Vector3((Math.random() - .5) * 20, (Math.random() - .5) * 20, (Math.random() - .5) * 20) });
+    }
+  }
+  function stepPiece(f, dt, dz) {
+    f.v.y -= 22 * dt;
+    f.m.position.addScaledVector(f.v, dt);
+    f.m.position.z += dz;
+    f.m.rotateX(f.w.x * dt); f.m.rotateY(f.w.y * dt); f.m.rotateZ(f.w.z * dt);
+    if (f.m.position.y < .05) {
+      f.m.position.y = .05;
+      if (f.v.y < 0) f.v.y *= -.3;
+      f.v.x *= .55; f.v.z *= .55; f.w.multiplyScalar(.5);
+    }
+  }
+  function shatterRobot() {
+    const center = new T.Vector3(bot.x, bot.y + 1, 0);
+    robotFrags = breakApart(rig, center, 5);
+    for (const f of robotFrags) f.v.z += 2 + Math.random() * 4;   // knocked back by the impact
+    addShards(center, 22, [M.ink, M.mid, M.light], 9);
+    rig.visible = false; blob.visible = false;
+    for (const r of vacRings) r.visible = false;
+  }
+  function shatterObstacle(o) {
+    o.g.updateWorldMatrix(true, true);
+    const center = o.g.getWorldPosition(new T.Vector3()); center.y += .4;
+    for (const f of breakApart(o.g, center, 6)) { f.v.z -= 4 + Math.random() * 4; f.life = 1.2 + Math.random() * .5; f.max = f.life; debris.push(f); }
+    addShards(center, 10, [new T.MeshBasicMaterial({ color: BULLET_COLOR }), M.ink], 8);
+    scene.remove(o.g);
+  }
+  function beginAssemble(done) {
+    poseNeutral();
+    botG.position.set(0, 0, 0);
+    botG.updateWorldMatrix(true, true);
+    for (const f of robotFrags) {
+      f.p0 = f.m.position.clone(); f.q0 = f.m.quaternion.clone(); f.sA = f.m.scale.clone();
+      f.p1 = new T.Vector3(); f.q1 = new T.Quaternion(); f.s1 = new T.Vector3();
+      f.src.matrixWorld.decompose(f.p1, f.q1, f.s1);
+      f.delay = Math.random() * .3;
+    }
+    assembling = { t: 0, done };
+    tone(260, .9, 'triangle', .045, 900);
+  }
+  function stepAssemble(dt) {
+    assembling.t += dt;
+    let all = true;
+    for (const f of robotFrags) {
+      const u = Math.max(0, Math.min(1, (assembling.t - f.delay) / .8));
+      if (u < 1) all = false;
+      const e = u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+      f.m.position.lerpVectors(f.p0, f.p1, e);
+      f.m.position.y += Math.sin(e * Math.PI) * 1.5;
+      f.m.quaternion.copy(f.q0).slerp(f.q1, e);
+      f.m.scale.lerpVectors(f.sA, f.s1, e);
+    }
+    if (all) {
+      for (const f of robotFrags) scene.remove(f.m);
+      robotFrags = [];
+      rig.visible = true; blob.visible = true;
+      tone(880, .08, 'square', .04); tone(1320, .14, 'square', .04, 0, .08);
+      antKick(6, 0);
+      const done = assembling.done; assembling = null;
+      if (done) done();
+    }
+  }
+
+  // ---------- Obstacles ----------
+  const droneBodyGeo = new T.BoxGeometry(1.3, .38, .8), armGeo = new T.BoxGeometry(1.67, .06, .06);
+  const rotorGeo = new T.BoxGeometry(.6, .03, .08), eyeGeo = new T.SphereGeometry(.09, 8, 6);
+  let obstacles = [];
+
+  // ---------- Coins ----------
+  const COIN_VALUE = 10;
+  const coinGeo = new T.CylinderGeometry(.32, .32, .08, 18);
+  const coinRimGeo = new T.TorusGeometry(.32, .035, 6, 18);
+  const coinMarkGeo = new T.BoxGeometry(.07, .26, .1);
+  const coinMat = new T.MeshStandardMaterial({ color: 0xcfc9bc, roughness: .35, metalness: .45, emissive: 0x2a2824, flatShading: true });
+  let coins = [], coinCount = 0;
+
+  function addCoin(lane, z, y) {
+    const g = new T.Group();
+    const disc = mesh(coinGeo, coinMat, 0, 0, 0, g); disc.rotation.x = Math.PI / 2;
+    mesh(coinRimGeo, M.ink, 0, 0, 0, g);
+    const mark = mesh(coinMarkGeo, M.ink, 0, 0, 0, g, false); mark.rotation.z = .5;
+    g.position.set(lane * LW, y, z); g.rotation.y = Math.random() * 3; scene.add(g);
+    coins.push({ g, x: lane * LW, y, z });
+  }
+  function coinLine(lane) {
+    const n = 4 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) addCoin(lane, SPAWN_Z - 3 - i * 2, .8);
+  }
+  function coinArc(lane, cz) {
+    for (let i = 0; i < 5; i++) {
+      const t = (i - 2) / 2.4;
+      addCoin(lane, cz + (i - 2) * 1.6, 1.0 + 1.7 * (1 - t * t));
+    }
+  }
+
+  function addCrystal(lane) {
+    const g = new T.Group();
+    const n = 1 + Math.floor(Math.random() * (speed > 28 ? 3 : 2));
+    const extra = .6 + Math.min(.6, (speed - 18) / 40);
+    let maxH = 0;
+    for (let i = 0; i < n; i++) {
+      const h = .9 + Math.random() * extra, r = .3 + Math.random() * .16;
+      const m = mesh(coneGeo, i % 2 ? M.mid : M.ink, (i - (n - 1) / 2) * .42 + (Math.random() - .5) * .1, h / 2, (Math.random() - .5) * .25, g);
+      m.scale.set(r, h, r);
+      m.rotation.set(0, Math.random() * 6, (Math.random() - .5) * .25);
+      maxH = Math.max(maxH, h);
+    }
+    g.position.set(lane * LW, 0, SPAWN_Z); scene.add(g);
+    obstacles.push({ kind: 'crystal', g, x: lane * LW, z: SPAWN_Z, hw: .25 + n * .18, hd: .3, y0: 0, y1: maxH * .85 });
+  }
+
+  function addDrone(lane, low) {
+    const g = new T.Group(), baseY = low ? .62 : 1.62;
+    mesh(droneBodyGeo, M.ink, 0, 0, 0, g);
+    for (const a of [-1, 1]) { const arm = mesh(armGeo, M.mid, 0, .2, 0, g); arm.rotation.y = a * .528; }
+    const rotors = [];
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) rotors.push(mesh(rotorGeo, M.light, sx * .72, .3, sz * .42, g));
+    mesh(eyeGeo, M.glow, 0, 0, .41, g, false);
+    g.position.set(lane * LW, baseY, SPAWN_Z); scene.add(g);
+    obstacles.push({ kind: 'drone', g, x: lane * LW, z: SPAWN_Z, hw: .75, hd: .45, baseY, y0: baseY - .2, y1: baseY + .32, rotors, ph: Math.random() * 6 });
+  }
+
+  // Bouncing balls
+  const BALL_R = .55;
+  const ballGeo = new T.SphereGeometry(BALL_R, 18, 12), ballBandGeo = new T.TorusGeometry(BALL_R + .01, .06, 6, 24);
+  const ballShadowGeo = new T.CircleGeometry(.55, 16);
+  const ballShadowMat = new T.MeshBasicMaterial({ color: INK, transparent: true, opacity: .14, depthWrite: false });
+  function addBall(lane) {
+    const g = new T.Group(), body = new T.Group(), spin = new T.Group();
+    g.add(body); body.add(spin);
+    mesh(ballGeo, M.ink, 0, 0, 0, spin);
+    mesh(ballBandGeo, M.light, 0, 0, 0, spin);
+    const b2 = mesh(ballBandGeo, M.mid, 0, 0, 0, spin); b2.rotation.y = Math.PI / 2;
+    const sh = new T.Mesh(ballShadowGeo, ballShadowMat);
+    sh.rotation.x = -Math.PI / 2; sh.position.y = .02; g.add(sh);
+    g.position.set(lane * LW, 0, SPAWN_Z); scene.add(g);
+    obstacles.push({
+      kind: 'ball', g, body, spin, sh, lane, x: lane * LW, z: SPAWN_Z, hw: .45, hd: .45, y0: 0, y1: 1,
+      ph: Math.random() * Math.PI, bh: 1.7 + Math.random() * .9, freq: 1.6 + Math.random() * .6,
+      drift: Math.random() < D.drift
+    });
+  }
+  function updateBall(o, dt) {
+    const prev = Math.sin(o.ph);
+    o.ph += dt * o.freq * Math.PI;
+    const now = Math.sin(o.ph), s = Math.abs(now);
+    if (Math.sign(prev) !== Math.sign(now)) {                // just bounced
+      if (o.drift) {
+        const opts = [o.lane - 1, o.lane + 1].filter(l => l >= -1 && l <= 1);
+        o.lane = opts[Math.floor(Math.random() * opts.length)];
+      }
+      if (o.z > -45) tone(150, .09, 'sine', .07, -60);
+    }
+    o.x += (o.lane * LW - o.x) * Math.min(1, dt * 3.2);
+    const y = BALL_R + s * o.bh;
+    const squash = s < .12 ? 1 - (.12 - s) * 2 : 1;
+    o.body.position.y = y * (s < .12 ? squash : 1);
+    o.body.scale.set(2 - squash, squash, 2 - squash);
+    o.spin.rotation.x -= dt * speed * .6;
+    o.sh.scale.setScalar(1 - s * .5);
+    o.g.position.set(o.x, 0, o.z);
+    o.y0 = y - BALL_R * .85; o.y1 = y + BALL_R * .85;
+  }
+
+  // ---------- Power-ups ----------
+  let power = null, powerItem = null, lastPowerEnd = 0, runTime = 0, slowMul = 1;
+  let bullets = [], fireCd = 0;
+  const bulletGeo = new T.CylinderGeometry(.06, .06, .6, 8), bulletGlowGeo = new T.SphereGeometry(.16, 10, 8);
+  const bulletGlowMat = new T.MeshBasicMaterial({ color: BULLET_COLOR, transparent: true, opacity: .35, depthWrite: false });
+  const powerMats = {}, bubbleMats = {};
+  for (const k in POWERS) {
+    powerMats[k] = glowMat(POWERS[k].color);
+    bubbleMats[k] = new T.MeshBasicMaterial({ color: POWERS[k].color, transparent: true, opacity: .16, depthWrite: false });
+  }
+  function powerIcon(type) {
+    const g = new T.Group(), m = powerMats[type];
+    if (type === 'slow') {            // hourglass
+      const top = mesh(new T.ConeGeometry(.2, .26, 14), m, 0, .13, 0, g); top.rotation.x = Math.PI;
+      mesh(new T.ConeGeometry(.2, .26, 14), m, 0, -.13, 0, g);
+      for (const y of [-.28, .28]) mesh(new T.CylinderGeometry(.24, .24, .04, 16), M.ink, 0, y, 0, g);
+    } else if (type === 'vacuum') {  // magnet
+      mesh(new T.TorusGeometry(.2, .075, 8, 20, Math.PI), m, 0, 0, 0, g);
+      for (const sd of [-1, 1]) {
+        box(.15, .16, .15, m, sd * .2, -.08, 0, g);
+        box(.15, .07, .15, M.light, sd * .2, -.19, 0, g);
+      }
+    } else {                          // blaster
+      box(.4, .15, .15, m, 0, 0, 0, g);
+      const barrel = mesh(new T.CylinderGeometry(.05, .05, .22, 10), M.ink, .3, .02, 0, g); barrel.rotation.z = Math.PI / 2;
+      mesh(new T.SphereGeometry(.06, 10, 8), bulletMat, .42, .02, 0, g, false);
+      box(.09, .18, .11, M.ink, -.1, -.13, 0, g);
+    }
+    return g;
+  }
+  function addPowerItem(lane) {
+    const types = Object.keys(POWERS), type = types[Math.floor(Math.random() * types.length)];
+    const g = new T.Group(), icon = powerIcon(type);
+    icon.scale.setScalar(1.3); g.add(icon);
+    g.add(new T.Mesh(new T.SphereGeometry(.62, 20, 14), bubbleMats[type]));
+    const ringM = new T.Mesh(new T.TorusGeometry(.72, .03, 6, 40), new T.MeshBasicMaterial({ color: POWERS[type].color }));
+    g.add(ringM);
+    g.position.set(lane * LW, 1.1, SPAWN_Z); scene.add(g);
+    powerItem = { type, g, icon, ring: ringM, x: lane * LW, y: 1.1, z: SPAWN_Z, ph: 0 };
+  }
+  function removePowerItem() { if (powerItem) { scene.remove(powerItem.g); powerItem = null; } }
+  function activatePower(type) {
+    power = { type, t: POWER_TIME };
+    [523, 659, 784, 1046].forEach((f, i) => tone(f, .12, 'square', .045, 0, i * .07));
+    happyT = .5; antKick(4, 0);
+    powerEl.style.setProperty('--pc', POWERS[type].css);
+    pLabel.textContent = POWERS[type].label;
+    pHint.textContent = type === 'gun' && !TOUCH ? 'F to fire' : '';
+    updatePowerVisuals();
+  }
+  function endPower(silent) {
+    if (!power) return;
+    power = null; lastPowerEnd = runTime;
+    if (!silent) tone(520, .25, 'triangle', .05, -300);
+    updatePowerVisuals();
+  }
+  function updatePowerVisuals() {
+    const t = power && power.type;
+    powerEl.style.display = power ? 'flex' : 'none';
+    blaster.visible = t === 'gun';
+    for (const r of vacRings) r.visible = t === 'vacuum';
+    fireBtn.style.display = t === 'gun' && TOUCH && state === 'run' ? 'block' : 'none';
+  }
+  function fire() {
+    if (state !== 'run' || !power || power.type !== 'gun' || fireCd > 0) return;
+    fireCd = FIRE_RATE;
+    rig.updateWorldMatrix(true, true);
+    muzzle.getWorldPosition(tmpV);
+    const g = new T.Group();
+    const core = new T.Mesh(bulletGeo, bulletMat); core.rotation.x = Math.PI / 2; g.add(core);
+    g.add(new T.Mesh(bulletGlowGeo, bulletGlowMat));
+    g.position.copy(tmpV); scene.add(g);
+    bullets.push({ g, x: tmpV.x, z: tmpV.z });
+    tone(980, .07, 'square', .035, -600);
+    antKick(-1.5, 0);
+  }
+  function clearBullets() { for (const b of bullets) scene.remove(b.g); bullets = []; }
+
+  function spawnRow() {
+    const lanes = [-1, 0, 1].sort(() => Math.random() - .5);
+    const prog = Math.min(1, (speed - D.start) / (D.max - D.start));
+    const used = Math.random() < D.two0 + D.two1 * prog ? 2 : 1;
+    for (let i = 0; i < used; i++) {
+      const r = Math.random();
+      if (score >= D.ballAt && r < D.ball) addBall(lanes[i]);
+      else if (score >= D.droneAt && r < D.ball + .3) addDrone(lanes[i], Math.random() < .5);
+      else {
+        addCrystal(lanes[i]);
+        if (Math.random() < .3) coinArc(lanes[i], SPAWN_Z);
+      }
+    }
+    const free = lanes.slice(used), freeLane = free[Math.floor(Math.random() * free.length)];
+    if (!power && !powerItem && score >= POWER_AT && runTime - lastPowerEnd > POWER_GAP && Math.random() < POWER_CHANCE) addPowerItem(freeLane);
+    else if (Math.random() < .55) coinLine(freeLane);
+    gapLeft = (speed * .9 + 8 + Math.random() * speed * .8) * D.gap;
+  }
+
+  // ---------- State ----------
+  let state = 'start', speed = D.start, score = 0, gapLeft = 0, overAt = 0, newBest = false;
+  let time = 0, phase = 0, duckAmt = 0, shake = 0, lastMilestone = 0;
+  const bot = { x: 0, lane: 0, y: 0, vy: 0, onGround: true, duck: false };
+  const input = { down: false, fire: false };
+
+  function reset() {
+    for (const o of obstacles) scene.remove(o.g);
+    obstacles = [];
+    for (const c of coins) scene.remove(c.g);
+    coins = []; coinCount = 0;
+    for (const f of debris) scene.remove(f.m);
+    debris = [];
+    clearBullets(); removePowerItem();
+    power = null; lastPowerEnd = 0; runTime = 0; slowMul = 1; fireCd = 0;
+    speed = D.start; score = 0; gapLeft = 40; newBest = false; lastMilestone = 0;
+    Object.assign(bot, { x: 0, lane: 0, y: 0, vy: 0, onGround: true, duck: false });
+    updatePowerVisuals();
+  }
+
+  function pad(n) { return String(Math.floor(n)).padStart(5, '0'); }
+  function updateHud() {
+    scoreEl.textContent = 'Score ' + pad(score);
+    bestEl.textContent = 'Best ' + pad(hi);
+    diffTagEl.textContent = D.label;
+    coinsEl.textContent = '● ' + String(coinCount).padStart(3, '0');
+  }
+  function showMsg() {
+    startEl.style.display = state === 'start' ? 'flex' : 'none';
+    msg.style.display = state === 'over' ? 'flex' : 'none';
+    hud.style.visibility = state === 'start' ? 'hidden' : 'visible';
+    startBestEl.textContent = `Best on ${D.label}: ` + pad(hi);
+    if (state === 'over')
+      subEl.textContent = `${D.label}  ·  ` + (newBest ? `New best: ${hi}!` : `Score: ${Math.floor(score)}`) + `  ·  Coins: ${coinCount}`;
+    updatePowerVisuals();
+  }
+  function startGame() {
+    audio();
+    const rebuild = robotFrags.length > 0;
+    reset();
+    if (rebuild) { state = 'assemble'; beginAssemble(() => { state = 'run'; updatePowerVisuals(); }); }
+    else state = 'run';
+    showMsg(); grabFocus();
+  }
+  function goMenu() {
+    const rebuild = robotFrags.length > 0;
+    reset(); state = 'start';
+    if (rebuild) beginAssemble(null);
+    showMsg();
+  }
+  const diffBtns = [...document.querySelectorAll('#diff button')];
+  function setDiff(d) {
+    if (!DIFFS[d] || state !== 'start') return;
+    if (d !== diff) tone(520, .05, 'triangle', .04, 120);
+    diff = d; D = DIFFS[d]; store.set('boltRunner3DDiff', d);
+    hi = +store.get(hiKey(d)) || 0;
+    for (const b of diffBtns) { const on = b.dataset.d === d; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); }
+    updateHud(); showMsg();
+  }
+
+  // ---------- Actions ----------
+  function jump() {
+    audio();
+    if (state === 'assemble') return;
+    if (state === 'start') { startGame(); return; }
+    if (state === 'over') {
+      if (performance.now() - overAt < 450) return;
+      startGame(); return;
+    }
+    if (bot.onGround && !input.down) {
+      bot.vy = JUMP_V; bot.onGround = false; antKick(5, 0);
+      tone(620, .09, 'square', .05, 240);
+    }
+  }
+  function release() { if (!bot.onGround && bot.vy > CUT_V) bot.vy = CUT_V; }
+  function changeLane(d) {
+    if (state !== 'run') return;
+    const nl = Math.max(-1, Math.min(1, bot.lane + d));
+    if (nl !== bot.lane) { antKick(0, (nl - bot.lane) * -5); bot.lane = nl; tone(420, .06, 'triangle', .05, 160); }
+  }
+  function crash() {
+    state = 'over'; overAt = performance.now(); shake = .4;
+    tone(220, .35, 'sawtooth', .07, -170); boom(.12);
+    if (Math.floor(score) > hi) { hi = Math.floor(score); newBest = true; saveHi(); }
+    shatterRobot();
+    endPower(true); clearBullets(); input.fire = false;
+    updateHud(); showMsg();
+  }
+
+  // ---------- Update ----------
+  function update(dt) {
+    time += dt;
+
+    // Slow-mo eases the whole world down (the robot keeps full reactions)
+    slowMul += ((power && power.type === 'slow' ? .5 : 1) - slowMul) * Math.min(1, dt * 3);
+    const odt = dt * slowMul;
+    const tint = (1 - slowMul) * 2;
+    scene.background.copy(paperC).lerp(slowC, tint);
+    scene.fog.color.copy(scene.background);
+
+    const scroll = state === 'run' ? speed : state === 'start' ? 6 : 0;
+
+    if (state === 'run') {
+      runTime += dt;
+      speed = Math.min(D.max, speed + D.accel * odt);
+      score += speed * odt * .45;
+      const ms = Math.floor(score / 100);
+      if (ms > lastMilestone) {
+        lastMilestone = ms;
+        tone(880, .08); tone(1320, .12, 'square', .05, 0, .09);
+        scoreEl.classList.remove('flash'); void scoreEl.offsetWidth; scoreEl.classList.add('flash');
+      }
+
+      // Power-up timer and HUD
+      if (power) {
+        power.t -= dt;
+        pBar.style.width = Math.max(0, power.t / POWER_TIME * 100) + '%';
+        pTime.textContent = Math.ceil(Math.max(0, power.t)) + 's';
+        powerEl.classList.toggle('low', power.t < 3);
+        if (power.t <= 0) endPower();
+      }
+
+      // Robot physics
+      if (!bot.onGround) {
+        bot.vy -= (input.down ? G * 2.6 : G) * dt;
+        bot.y += bot.vy * dt;
+        if (bot.y <= 0) { bot.y = 0; bot.vy = 0; bot.onGround = true; antKick(-6, 0); }
+      }
+      bot.duck = input.down && bot.onGround;
+
+      // Obstacles
+      gapLeft -= speed * odt;
+      if (gapLeft <= 0) spawnRow();
+      for (const o of obstacles) {
+        o.z += (o.kind === 'drone' ? speed * 1.06 : speed) * odt;
+        if (o.kind === 'ball') { o.z += speed * .12 * odt; updateBall(o, odt); }
+        else if (o.kind === 'drone') {
+          o.ph += odt * 6;
+          o.g.position.set(o.x, o.baseY + Math.sin(o.ph) * .06, o.z);
+          for (const r of o.rotors) r.rotation.y += odt * 40;
+        } else o.g.position.z = o.z;
+      }
+      obstacles = obstacles.filter(o => {
+        if (o.z > FRONT) { scene.remove(o.g); return false; }
+        return true;
+      });
+
+      // Blaster: fire and move bullets (bullets hit anything in their lane)
+      fireCd -= dt;
+      if (input.fire) fire();
+      bullets = bullets.filter(b => {
+        const z0 = b.z;
+        b.z -= BULLET_SPEED * dt;
+        b.g.position.z = b.z;
+        for (let i = 0; i < obstacles.length; i++) {
+          const o = obstacles[i];
+          if (Math.abs(b.x - o.x) < o.hw + .35 && z0 > o.z - o.hd && b.z < o.z + o.hd) {
+            shatterObstacle(o); obstacles.splice(i, 1);
+            score += SHOT_BONUS; boom(.07); tone(160, .2, 'sawtooth', .05, -100);
+            scene.remove(b.g); return false;
+          }
+        }
+        if (b.z < SPAWN_Z - 10) { scene.remove(b.g); return false; }
+        return true;
+      });
+
+      const bx0 = bot.x - .45, bx1 = bot.x + .45, by0 = bot.y, by1 = bot.y + (bot.duck ? 1.0 : 1.8);
+
+      // Coins: move, spin, (vacuum), collect
+      const vac = power && power.type === 'vacuum';
+      coins = coins.filter(c => {
+        c.z += speed * odt;
+        if (vac && c.z > -32 && c.z < 4) {
+          const k = Math.min(1, dt * 7);
+          c.x += (bot.x - c.x) * k; c.y += (bot.y + 1 - c.y) * k; c.z += (0 - c.z) * Math.min(1, dt * 5);
+          c.g.position.x = c.x; c.g.position.y = c.y;
+        }
+        c.g.position.z = c.z;
+        c.g.rotation.y += dt * 4;
+        if (Math.abs(c.x - bot.x) < .8 && Math.abs(c.z) < .6 && c.y > by0 - .3 && c.y < by1 + .3) {
+          scene.remove(c.g);
+          coinCount++; score += COIN_VALUE; happyT = .35;
+          tone(1180, .05, 'square', .04); tone(1760, .09, 'square', .035, 0, .05);
+          coinsEl.classList.remove('pop'); void coinsEl.offsetWidth; coinsEl.classList.add('pop');
+          return false;
+        }
+        if (c.z > FRONT) { scene.remove(c.g); return false; }
+        return true;
+      });
+
+      // Power-up pickup
+      if (powerItem) {
+        const p = powerItem;
+        p.z += speed * odt; p.ph += dt;
+        p.g.position.set(p.x, p.y + Math.sin(p.ph * 3) * .12, p.z);
+        p.icon.rotation.y += dt * 2.2;
+        p.ring.rotation.x = p.ph * 1.7; p.ring.rotation.y = p.ph * 1.1;
+        if (Math.abs(p.x - bot.x) < .9 && Math.abs(p.z) < .9 && p.y > by0 - .4 && p.y < by1 + .4) {
+          const type = p.type; removePowerItem(); activatePower(type);
+        } else if (p.z > FRONT) removePowerItem();
+      }
+
+      // Collision (3D AABB)
+      for (const o of obstacles) {
+        if (bx0 < o.x + o.hw && bx1 > o.x - o.hw && -.35 < o.z + o.hd && .35 > o.z - o.hd && by0 < o.y1 && by1 > o.y0) { crash(); break; }
+      }
+      updateHud();
+    }
+
+    // Debris and robot pieces
+    const dz = state === 'run' ? speed * odt : 0;
+    debris = debris.filter(f => {
+      stepPiece(f, dt, dz);
+      f.life -= dt;
+      if (f.life < .5) f.m.scale.copy(f.s0).multiplyScalar(Math.max(0, f.life / .5));
+      if (f.life <= 0 || f.m.position.z > FRONT) { scene.remove(f.m); return false; }
+      return true;
+    });
+    if (assembling) stepAssemble(dt);
+    else for (const f of robotFrags) stepPiece(f, dt, 0);
+
+    // Lane movement
+    const tx = bot.lane * LW;
+    bot.x += (tx - bot.x) * Math.min(1, dt * 14);
+
+    // Scenery scroll + wrap
+    if (scroll) for (const s of scenery) {
+      s.position.z += scroll * (state === 'run' ? odt : dt);
+      if (s.position.z > FRONT) s.position.z -= SPAN;
+    }
+
+    // ---- Robot animation ----
+    botG.position.set(bot.x, bot.y, 0);
+    blob.position.x = bot.x;
+    blob.scale.setScalar(Math.max(.4, 1 - bot.y * .2));
+    duckAmt += ((bot.duck ? 1 : 0) - duckAmt) * Math.min(1, dt * 18);
+    for (const [i, r] of vacRings.entries()) {
+      r.rotation.z += dt * (i ? -4 : 3);
+      r.scale.setScalar(1 + Math.sin(time * 8 + i * 1.5) * .08);
+    }
+
+    if (!assembling) {
+      let pk = Math.min(1, dt * 14), rigY = 0, rigRX = 0, rigRY = 0, pupX = 0;
+      const lg = [0, 0];
+      const at = [{ x: 0, z: .12, e: .25, ez: 0 }, { x: 0, z: .12, e: .25, ez: 0 }];
+      if (state === 'run') {
+        rig.rotation.z = (bot.x - tx) * .12;
+        pupX = Math.max(-.03, Math.min(.03, (tx - bot.x) * .03));
+        pk = Math.min(1, dt * 30);
+        if (bot.onGround) {
+          const prevC = Math.cos(phase);
+          phase += odt * speed * .55;
+          const c = Math.cos(phase);
+          if (Math.sign(prevC) !== Math.sign(c)) antKick(-1.4, (Math.random() - .5) * .8); // footfall
+          for (let i = 0; i < 2; i++) {
+            const sn = Math.sin(phase + i * Math.PI);
+            lg[i] = sn * .8;
+            at[i] = { x: -sn * .9, z: .15, e: 1.0 + Math.max(0, sn) * .35, ez: 0 };
+          }
+          rigY = Math.abs(c) * .07; rigRX = -.06;
+        } else {
+          const rising = bot.vy > 0;
+          lg[0] = .6; lg[1] = -.5;
+          at[0] = at[1] = { x: rising ? 2.5 : 1.3, z: .45, e: rising ? .2 : .6, ez: 0 };
+        }
+        if (duckAmt > .01) for (const a of at) { a.x += (.5 - a.x) * duckAmt; a.e += (1 - a.e) * duckAmt; }
+        if (power && power.type === 'gun') at[1] = { x: 1.5, z: .04, e: .05, ez: 0 }; // aim the blaster
+      } else if (state === 'start') {
+        rigY = Math.sin(time * 3) * .03;
+        rigRY = Math.sin(time * .7) * .35;
+        pupX = Math.sin(time * .7) * .02;
+        at[1] = { x: 0, z: 2.5, e: 0, ez: Math.sin(time * 9) * .55 };   // wave
+        at[0] = { x: .1, z: .1, e: .3, ez: 0 };
+        const h = document.hasFocus() ? '' : 'Click anywhere once to enable the keyboard';
+        if (hintEl.textContent !== h) hintEl.textContent = h;
+      }
+      if (state !== 'run') rig.rotation.z += (0 - rig.rotation.z) * pk;
+      rig.position.y = rigY;
+      rig.rotation.x += (rigRX - rig.rotation.x) * pk;
+      rig.rotation.y += (rigRY - rig.rotation.y) * pk;
+      rig.scale.set(1, 1 - .45 * duckAmt, 1 + .25 * duckAmt);
+      for (let i = 0; i < 2; i++) {
+        legs[i].rotation.x += (lg[i] - legs[i].rotation.x) * pk;
+        const A = arms[i], u = at[i];
+        A.sh.rotation.x += (u.x - A.sh.rotation.x) * pk;
+        A.sh.rotation.z += (A.sd * u.z - A.sh.rotation.z) * pk;
+        A.el.rotation.x += (u.e - A.el.rotation.x) * pk;
+        A.el.rotation.z += (A.sd * u.ez - A.el.rotation.z) * pk;
+      }
+
+      // Eyes: blink, happy squint after a coin, glance toward lane changes
+      blinkT -= dt; happyT = Math.max(0, happyT - dt);
+      if (blinkT < -.12) blinkT = 2 + Math.random() * 3;
+      const eyeSY = blinkT < 0 ? .1 : happyT > 0 ? .4 : 1;
+      for (const ey of eyes) {
+        ey.e.scale.y += (eyeSY - ey.e.scale.y) * Math.min(1, dt * 30);
+        ey.pu.position.x += (-pupX - ey.pu.position.x) * Math.min(1, dt * 10); // eye group is turned 180°, so flip x
+      }
+      for (let i = 0; i < 3; i++) chestLights[i].color.setHex(state === 'run' && Math.floor(time * 6) % 3 === i ? GLOW : LIGHT);
+
+      // Antenna spring physics
+      const runAmt = state === 'run' && bot.onGround ? 1 : 0;
+      const aTX = Math.sin(time * 13) * .14 * runAmt - (state === 'run' && !bot.onGround ? bot.vy * .015 : 0);
+      const aTZ = Math.sin(time * 9.3) * .1 * runAmt + (state === 'start' ? Math.sin(time * 2) * .12 : 0);
+      antS.vx += ((aTX - antS.ax) * 160 - antS.vx * 7) * dt; antS.ax += antS.vx * dt;
+      antS.vz += ((aTZ - antS.az) * 160 - antS.vz * 7) * dt; antS.az += antS.vz * dt;
+      antS.ax = Math.max(-1.2, Math.min(1.2, antS.ax)); antS.az = Math.max(-1.2, Math.min(1.2, antS.az));
+      ant.forEach((g, i) => { g.rotation.x = antS.ax * (.6 + i * .35); g.rotation.z = antS.az * (.6 + i * .35); });
+      tipMat.emissive.setScalar(state === 'run' ? (Math.sin(time * 12) > 0 ? .55 : .08) : .25 + .2 * Math.sin(time * 3));
+    }
+
+    // Camera: slow orbit on the start screen, chase cam otherwise
+    if (state === 'start') {
+      const a = time * .28;
+      camT.set(Math.sin(a) * 7.4, 3.1, -Math.cos(a) * 7.4);
+      lookT.set(0, 1.0, 0);
+    } else {
+      camT.set(3 + bot.x * .5, 3.5, 7.4);
+      lookT.set(bot.x * .6, 1.1, -7);
+    }
+    const k = Math.min(1, dt * (state === 'start' ? 3 : 6));
+    camBase.lerp(camT, k); look.lerp(lookT, k);
+    let sx = 0, sy = 0;
+    if (shake > 0) { shake -= dt; sx = (Math.random() - .5) * .35; sy = (Math.random() - .5) * .35; }
+    camera.position.set(camBase.x + sx, camBase.y + sy, camBase.z);
+    camera.lookAt(look);
+
+    // Shift the framing so the robot sits beside the start-screen card
+    viewShift += ((state === 'start' ? 1 : 0) - viewShift) * Math.min(1, dt * 4);
+    applyView();
+  }
+  const camT = new T.Vector3(), lookT = new T.Vector3(), camBase = new T.Vector3(0, 3.1, -7.4), look = new T.Vector3(0, 1.1, 0);
+  let viewShift = 1, vw = 1, vh = 1;
+  function applyView() {
+    if (viewShift < .001) { camera.clearViewOffset(); return; }
+    const phone = vw < 700;
+    camera.setViewOffset(vw, vh, phone ? 0 : -vw * .2 * viewShift, phone ? vh * .2 * viewShift : 0, vw, vh);
+  }
+
+  // ---------- Sizing ----------
+  function fit() {
+    const w = window.innerWidth, h = window.innerHeight;
+    vw = w; vh = h;
+    renderer.setSize(w, h);
+    camera.aspect = w / h;
+    camera.fov = w / h < 1.2 ? 68 : 55;
+    camera.updateProjectionMatrix();
+    applyView();
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', () => setTimeout(fit, 250));
+  stage.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  fit();
+
+  // ---------- Loop ----------
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    update(dt);
+    renderer.render(scene, camera);
+    requestAnimationFrame(loop);
+  }
+  updateHud(); showMsg();
+  requestAnimationFrame(loop);
+  document.addEventListener('visibilitychange', () => { last = performance.now(); });
+
+  // ---------- Keyboard ----------
+  const has = (e, codes, keys) => codes.includes(e.code) || keys.includes(e.key);
+  const isJump = e => has(e, ['Space', 'ArrowUp', 'KeyW', 'Enter', 'NumpadEnter'], [' ', 'Spacebar', 'ArrowUp', 'Up', 'w', 'W', 'Enter']);
+  const isDown = e => has(e, ['ArrowDown', 'KeyS'], ['ArrowDown', 'Down', 's', 'S']);
+  const isLeft = e => has(e, ['ArrowLeft', 'KeyA'], ['ArrowLeft', 'Left', 'a', 'A']);
+  const isRight = e => has(e, ['ArrowRight', 'KeyD'], ['ArrowRight', 'Right', 'd', 'D']);
+  const isFire = e => has(e, ['KeyF', 'KeyX', 'KeyK'], ['f', 'F', 'x', 'X', 'k', 'K']);
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' || e.code === 'Escape') { if (state === 'over') { e.preventDefault(); goMenu(); } return; }
+    if (state === 'start') {
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Enter') { e.preventDefault(); if (!e.repeat) startGame(); return; }
+      const n = '1234'.indexOf(e.key);
+      if (n >= 0) { setDiff(DIFF_ORDER[n]); return; }
+      if (isLeft(e) || isRight(e)) {
+        e.preventDefault();
+        const i = DIFF_ORDER.indexOf(diff) + (isLeft(e) ? -1 : 1);
+        setDiff(DIFF_ORDER[Math.max(0, Math.min(3, i))]);
+        return;
+      }
+    }
+    if (isFire(e)) { e.preventDefault(); input.fire = true; fire(); }
+    else if (isJump(e)) { e.preventDefault(); if (!e.repeat) jump(); }
+    else if (isDown(e)) { e.preventDefault(); input.down = true; audio(); }
+    else if (isLeft(e)) { e.preventDefault(); if (!e.repeat) changeLane(-1); }
+    else if (isRight(e)) { e.preventDefault(); if (!e.repeat) changeLane(1); }
+  }, true);
+  window.addEventListener('keyup', e => {
+    if (isFire(e)) { e.preventDefault(); input.fire = false; }
+    else if (isJump(e)) { e.preventDefault(); release(); }
+    else if (isDown(e)) { e.preventDefault(); input.down = false; }
+  }, true);
+  window.addEventListener('blur', () => { input.down = false; input.fire = false; release(); });
+
+  const grabFocus = () => { try { window.focus(); stage.focus({ preventScroll: true }); } catch (e) {} };
+  grabFocus();
+  window.addEventListener('load', grabFocus);
+
+  // ---------- Buttons ----------
+  const btn = (id, fn) => {
+    const b = $(id);
+    b.addEventListener('pointerdown', e => e.stopPropagation());
+    b.addEventListener('click', e => { e.stopPropagation(); fn(); });
+  };
+  btn('play', startGame);
+  btn('retry', startGame);
+  btn('menu', goMenu);
+  for (const b of diffBtns) {
+    b.addEventListener('pointerdown', e => e.stopPropagation());
+    b.addEventListener('click', e => { e.stopPropagation(); audio(); setDiff(b.dataset.d); });
+  }
+  fireBtn.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); audio(); input.fire = true; fire(); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) fireBtn.addEventListener(ev, e => { e.stopPropagation(); input.fire = false; });
+  setDiff(diff);
+
+  // ---------- Touch / mouse ----------
+  // Tap = jump · swipe left/right = lane · swipe down = duck (hold) · swipe up = jump
+  let ps = null;
+  stage.addEventListener('pointerdown', e => {
+    e.preventDefault(); grabFocus(); audio();
+    ps = { x: e.clientX, y: e.clientY, done: false };
+    if (stage.setPointerCapture) stage.setPointerCapture(e.pointerId);
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!ps || ps.done) return;
+    const dx = e.clientX - ps.x, dy = e.clientY - ps.y;
+    if (Math.abs(dx) > 35 && Math.abs(dx) > Math.abs(dy)) { changeLane(Math.sign(dx)); ps.done = true; }
+    else if (dy > 35) { input.down = true; ps.done = true; ps.duck = true; }
+    else if (dy < -35) { jump(); ps.done = true; }
+  });
+  const up = () => {
+    if (!ps) return;
+    if (!ps.done) jump();
+    if (ps.duck) input.down = false;
+    ps = null;
+  };
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+
+  // Test hook: open the page with #debug to grant power-ups from the console
+  if (location.hash === '#debug') window.boltRunner = { power: t => { if (POWERS[t] && state === 'run') { endPower(true); activatePower(t); } }, state: () => state };
+})();
+</script>
+</body>
+</html>
